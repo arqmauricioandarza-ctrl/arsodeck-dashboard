@@ -313,7 +313,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
           <span class="met-trend tr-na">Abr 2026</span>
         </div>
         <div class="mlbl">Ventas del mes</div>
-        <div class="mval">$268k</div>
+        <div class="mval" id="fVentasTxt">$268k</div>
         <div class="msub">Meta: $1,100,000</div>
       </div>
       <div class="met">
@@ -330,9 +330,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
           <div class="met-icon ic-a">📋</div>
           <span class="met-trend tr-na">Fijo</span>
         </div>
-        <div class="mlbl">Gastos fijos / mes</div>
-        <div class="mval">$261k</div>
-        <div class="msub">Sin retiro personal</div>
+        <div class="mlbl">Gastos del mes</div>
+        <div class="mval" id="fGastosTxt">$261k</div>
+        <div class="msub" id="fGastosSub">Sin retiro personal</div>
       </div>
       <div class="met">
         <div class="met-top">
@@ -356,15 +356,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
           <div class="ring">
             <canvas id="cMeta"></canvas>
             <div class="ringm">
-              <div class="ringpct co">24%</div>
+              <div class="ringpct co" id="metaPctTxt">24%</div>
               <div class="ringlbl">de meta</div>
             </div>
           </div>
           <div style="width:100%;margin-top:12px;">
-            <div class="sr"><span class="srl">Ventas a la fecha</span><span class="srr cg">$268,161</span></div>
-            <div class="sr"><span class="srl">Falta para meta</span><span class="srr ca">$831,839</span></div>
+            <div class="sr"><span class="srl">Ventas a la fecha</span><span class="srr cg" id="rVTxt">$268,161</span></div>
+            <div class="sr"><span class="srl">Falta para meta</span><span class="srr ca" id="rFTxt">$831,839</span></div>
             <div class="sr"><span class="srl">Días hábiles rest.</span><span class="srr">~16</span></div>
-            <div class="sr"><span class="srl">Necesario / día</span><span class="srr cb">$51,990</span></div>
+            <div class="sr"><span class="srl">Necesario / día</span><span class="srr cb" id="rDdTxt">$51,990</span></div>
           </div>
         </div>
       </div>
@@ -809,6 +809,139 @@ const PEDIDOS = [
   {mes:'ABRIL',fecha:'08/04',rastreo:'',proveedor:'SARO',origen:'CDMX',destino:'BODEGA ARSO',paqueteria:'—',pedido:'12511',estatus:'En tránsito',nota:'Sin guía aún'},
 ];
 
+// ── LIVE DATA (Apps Script) ──────────────────────────────────
+const API = 'https://script.google.com/macros/s/AKfycbyKamQxCIJVTaAuoqzL6uOHqIFU9B0kK7EWW-bqxMWnlfUp3qcYkZasjKG3bJCiQt5W/exec';
+
+async function loadLiveData(tipo) {
+  try {
+    const r = await fetch(API + '?tipo=' + tipo);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const json = await r.json();
+    if (!json.ok) throw new Error('API error');
+    return json.rows;
+  } catch(e) {
+    console.warn('Live data failed for ' + tipo + ':', e.message);
+    return null;
+  }
+}
+
+function cleanN(v) {
+  if (typeof v === 'number') return v;
+  return parseFloat(String(v).replace(/[$,%\s]/g,'').replace(/,/g,'')) || 0;
+}
+
+// ── RENDER GASTOS LIVE ────────────────────────────────────────
+function renderGastosLive(rows) {
+  const fi = (row, words) => row.findIndex(c => words.some(w => String(c).toUpperCase().includes(w)));
+  let hdr=-1, cols={};
+  for (let i=0; i<rows.length; i++) {
+    const ci=fi(rows[i],['CUENTA']), gi=fi(rows[i],['GASTO']);
+    if (ci>=0 && gi>=0) {
+      hdr=i; cols.cuenta=ci; cols.gasto=gi;
+      cols.obs=fi(rows[i],['OBSERV']); cols.fecha=fi(rows[i],['FECHA']);
+      cols.imp=fi(rows[i],['IMPORTE']); cols.pago=fi(rows[i],['PAGO','FORMA']);
+      cols.fact=fi(rows[i],['FACTUR']); break;
+    }
+  }
+  let total=0, compras=0, nominas=0;
+  for (let i=0; i<Math.min(hdr+1,rows.length); i++) {
+    const r=rows[i];
+    for (let j=0; j<r.length-1; j++) {
+      const v=cleanN(r[j+1]), k=String(r[j]).toUpperCase();
+      if (k==='TOTAL' && v>total) total=v;
+      if (k==='COMPRAS') compras=v;
+      if (k==='NOMINAS'||k==='NÓMINAS') nominas=v;
+    }
+  }
+  const txns=[], catT={};
+  if (hdr>=0) {
+    for (let i=hdr+1; i<rows.length; i++) {
+      const r=rows[i];
+      const imp=cleanN(r[cols.imp]), cuenta=String(r[cols.cuenta]||'').trim();
+      if (cuenta && cuenta!=='CUENTA' && imp>0) {
+        txns.push({cuenta,gasto:String(r[cols.gasto]||'').trim(),obs:String(r[cols.obs]||'').trim(),fecha:String(r[cols.fecha]||'').trim(),importe:imp,pago:String(r[cols.pago]||'').trim(),fact:String(r[cols.fact]||'').trim()});
+        catT[cuenta]=(catT[cuenta]||0)+imp;
+      }
+    }
+  }
+  const realTotal=total||txns.reduce((s,t)=>s+t.importe,0);
+  const sinFact=txns.filter(t=>String(t.fact).toUpperCase()!=='SI').reduce((s,t)=>s+t.importe,0);
+  const mesLbl=rows[0]?String(rows[0][1]||'Mes actual'):'Mes actual';
+
+  // Update finanzas gastos card
+  document.getElementById('fGastosTxt').textContent = fmt(realTotal);
+  document.getElementById('fGastosSub').textContent = mesLbl + ' — ' + txns.length + ' registros';
+
+  // Update gastos section header badge
+  const gBadge = document.getElementById('gastosLiveBadge');
+  if (gBadge) gBadge.textContent = '● LIVE';
+
+  console.log('Gastos live: ' + txns.length + ' transacciones, total ' + realTotal);
+}
+
+// ── RENDER VENTAS LIVE ────────────────────────────────────────
+function renderVentasLive(rows) {
+  const fi=(row,words)=>row.findIndex(c=>words.some(w=>String(c).toUpperCase().includes(w)));
+  let hdr=-1, cols={};
+  for (let i=0; i<rows.length; i++) {
+    const r=rows[i], ci=fi(r,['CLIENTE']);
+    if (ci>=0 && !String(r[0]).includes('$') && String(r[ci]).toUpperCase()==='CLIENTE') {
+      hdr=i; cols.cliente=ci;
+      cols.canal=fi(r,['CONTACTO','CANAL','MEDIO']);
+      cols.est=fi(r,['ESTATUS MATER','STATUS MATER']);
+      cols.fecha=fi(r,['FECHA']); cols.sub=fi(r,['SUBTOTAL']);
+      cols.imp=fi(r,['IMPORTE TOTAL','IMPORTE']);
+      cols.pago=fi(r,['FORMA PAGO','PAGO']);
+      cols.fact=fi(r,['FACTURA','FACTUR']);
+      break;
+    }
+  }
+  const txns=[];
+  const skip=['TOTAL','VENTAS','ORIGEN',''];
+  if (hdr>=0) {
+    for (let i=hdr+1; i<rows.length; i++) {
+      const r=rows[i];
+      const imp=cleanN(r[cols.imp]), cli=String(r[cols.cliente]||'').trim();
+      if (cli && !skip.includes(cli.toUpperCase()) && imp>0) {
+        txns.push({cliente:cli,canal:String(r[cols.canal]||'').trim(),estatus:String(r[cols.est]||'').trim(),fecha:String(r[cols.fecha]||'').trim(),importe:imp,fact:String(r[cols.fact]||'').trim()});
+      }
+    }
+  }
+  const totalV=txns.reduce((s,t)=>s+t.importe,0);
+  const pct=Math.min(100,Math.round(totalV/1100000*100));
+
+  // Update finanzas
+  document.getElementById('fVentasTxt').textContent = fmt(totalV);
+  document.getElementById('metaPctTxt').textContent = pct + '%';
+  document.getElementById('rVTxt').textContent = '$'+Math.round(totalV).toLocaleString('es-MX');
+  document.getElementById('rFTxt').textContent = '$'+Math.round(Math.max(0,1100000-totalV)).toLocaleString('es-MX');
+  document.getElementById('rDdTxt').textContent = '$'+Math.round(Math.max(0,1100000-totalV)/16).toLocaleString('es-MX');
+
+  // Update ring
+  if (window._metaChart) {
+    window._metaChart.data.datasets[0].data=[pct,100-pct];
+    window._metaChart.update();
+  }
+
+  // Update ventas live badge
+  const vBadge = document.getElementById('ventasLiveBadge');
+  if (vBadge) vBadge.textContent = '● LIVE · ' + txns.length + ' ventas · ' + fmt(totalV);
+
+  console.log('Ventas live: ' + txns.length + ' ventas, total ' + totalV);
+}
+
+// ── INIT LIVE ─────────────────────────────────────────────────
+async function initLiveData() {
+  const [gastosRows, ventasRows] = await Promise.all([
+    loadLiveData('gastos'),
+    loadLiveData('ventas')
+  ]);
+  if (gastosRows) renderGastosLive(gastosRows);
+  if (ventasRows) renderVentasLive(ventasRows);
+  // Refresh every 5 min
+  setTimeout(initLiveData, 300000);
+}
+
 const fmt=n=>{const a=Math.abs(n),s=n<0?'-':'';return a>=1e6?s+'$'+(a/1e6).toFixed(2)+'M':a>=1e3?s+'$'+Math.round(a/1000)+'k':s+'$'+Math.round(a).toLocaleString('es-MX');};
 
 // ── CHARTS ────────────────────────────────────────────────────
@@ -958,6 +1091,9 @@ new Chart(document.getElementById('cCajaBod'),{type:'doughnut',data:{
     backgroundColor:['#f5a020','#f03d5f','#22c97a','#4f7dff','#00bfa5','#7c4fff'],
     borderWidth:0,cutout:'60%'}]
 },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>v.label+': $'+v.raw.toLocaleString()}}}}});
+
+// ── INIT LIVE DATA ───────────────────────────────────────────
+initLiveData();
 
 // ── MAP ───────────────────────────────────────────────────────
 function initMap(){
