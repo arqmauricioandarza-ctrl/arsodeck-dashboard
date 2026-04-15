@@ -470,11 +470,21 @@ async function checkPwd() {
     </div>
     <div class="g21">
       <div class="card">
-        <div class="card-hdr"><div class="ctit">Ventas — Abril 2026</div></div>
-        <div class="tw">
+        <div class="card-hdr">
+          <div class="ctit">Ventas — <span id="vMesLbl">Abril 2026</span> · <span id="vCountLbl" style="color:var(--accent)">—</span> ventas · <span id="vTotalLbl" style="color:var(--green)">—</span></div>
+        </div>
+        <div class="tw" style="max-height:500px;overflow-y:auto;">
           <table class="tbl">
-            <thead><tr><th>Fecha</th><th>Cliente</th><th>Material</th><th>Canal</th><th>Estatus</th><th style="text-align:right">Total c/IVA</th><th>Factura</th></tr></thead>
-            <tbody>
+            <thead><tr>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Fecha</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Cliente</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Material</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Canal</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Estatus</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;text-align:right">Total c/IVA</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Factura</th>
+            </tr></thead>
+            <tbody id="vTbody">
               <tr><td class="cx" style="font-family:var(--mono);font-size:10px;">01/04</td><td>Carlos Alberto Mata</td><td class="cx" style="font-size:10px;">2 pcs Wall Cladding</td><td><span class="ctag">Quiby</span></td><td><span class="bdg bdg-g">Entregado</span></td><td style="text-align:right;font-family:var(--mono);">$1,100</td><td><span class="bdg bdg-g">Sí</span></td></tr>
               <tr><td class="cx" style="font-family:var(--mono);font-size:10px;">06/04</td><td>Sergio Moreno</td><td class="cx" style="font-size:10px;">1 caja Lambrin Int</td><td><span class="ctag">Quiby</span></td><td><span class="bdg bdg-a">Pdte entrega</span></td><td style="text-align:right;font-family:var(--mono);">$2,800</td><td><span class="bdg bdg-g">Sí</span></td></tr>
               <tr><td class="cx" style="font-family:var(--mono);font-size:10px;">07/04</td><td>Cynthia Nayeli</td><td class="cx" style="font-size:10px;">3 cajas Lambrin Int</td><td><span class="ctag">Quiby</span></td><td><span class="bdg bdg-a">Pdte entrega</span></td><td style="text-align:right;font-family:var(--mono);">$8,400</td><td><span class="bdg bdg-a">Pdte</span></td></tr>
@@ -1010,6 +1020,10 @@ function renderVentasLive(rows) {
       if (!cli || SKIP_CLI.includes(cli.toUpperCase())) continue;
       if (!hasValidCot) continue; // filas de resumen/fórmula no tienen COT
       if (imp <= 0) continue;
+      // Material is in the columns between COT and ESTATUS MATERIAL
+      // In the sheet: cols.cot is col 4, material desc appears around col 6-7
+      const matCol = cols.cot >= 0 ? cols.cot + 2 : -1;
+      const material = matCol >= 0 ? String(r[matCol]||'').trim() : '';
       txns.push({
         cliente:   cli,
         canal:     String(r[cols.canal]||'').trim(),
@@ -1019,7 +1033,8 @@ function renderVentasLive(rows) {
         importe:   imp,
         pago:      String(r[cols.pago]||'').trim(),
         fact:      String(r[cols.fact]||'').trim(),
-        cot:       cotNum
+        cot:       cotNum,
+        material:  material
       });
     }
   }
@@ -1075,7 +1090,7 @@ function renderVentasLive(rows) {
       tr.innerHTML=`
         <td class="cx" style="font-family:var(--mono);font-size:10px;">${t.fechapago||'—'}</td>
         <td style="font-weight:500;font-size:12px;">${t.cliente}</td>
-        <td class="cx" style="font-size:10px;">—</td>
+        <td class="cx" style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.material||'—'}</td>
         <td><span class="ctag">${canalShort}</span></td>
         <td>${estBadge}</td>
         <td style="text-align:right;font-family:var(--mono);">$${Math.round(t.importe).toLocaleString('es-MX')}</td>
