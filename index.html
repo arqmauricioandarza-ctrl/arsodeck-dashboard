@@ -994,25 +994,32 @@ function renderVentasLive(rows) {
     }
   }
 
-  // Filter valid sales rows — skip test entries, totals, empty rows
-  const SKIP=['CLIENTE','ORIGEN','USO DE CFDI','G03','G01','BAJS','NAN','TOTAL','FORMAS DE PAGO',''];
+  // Filter valid sales rows
+  // Una venta real SIEMPRE tiene número de COT (4314, 4316, etc.) y cliente y monto > 0
+  const SKIP_CLI=['CLIENTE','ORIGEN','USO DE CFDI','G03','G01','BAJS','NAN','TOTAL','FORMAS DE PAGO'];
   const txns=[];
   if (hdr>=0) {
     for (let i=hdr+1;i<rows.length;i++) {
       const r=rows[i];
-      const cli=String(r[cols.cliente]||'').trim();
-      const imp=cleanN(r[cols.imp]);
-      // Skip if no client, is a test/summary row, or amount too large (>500k single sale = likely error)
-      if (!cli || SKIP.includes(cli.toUpperCase()) || imp<=0 || imp>500000) continue;
+      const cli   = String(r[cols.cliente]||'').trim();
+      const imp   = cleanN(r[cols.imp]);
+      const cot   = r[cols.cot];
+      // Número de COT debe ser numérico > 100 (ej. 4314, 4316...)
+      const cotNum = parseFloat(String(cot||'').replace(/[^0-9.]/g,''));
+      const hasValidCot = !isNaN(cotNum) && cotNum > 100;
+      if (!cli || SKIP_CLI.includes(cli.toUpperCase())) continue;
+      if (!hasValidCot) continue; // filas de resumen/fórmula no tienen COT
+      if (imp <= 0) continue;
       txns.push({
-        cliente: cli,
-        canal:   String(r[cols.canal]||'').trim(),
-        estmat:  String(r[cols.estmat]||'').trim(),
+        cliente:   cli,
+        canal:     String(r[cols.canal]||'').trim(),
+        estmat:    String(r[cols.estmat]||'').trim(),
         fechapago: String(r[cols.fechapago]||'').trim(),
-        subtotal: cleanN(r[cols.sub]),
-        importe: imp,
-        pago:    String(r[cols.pago]||'').trim(),
-        fact:    String(r[cols.fact]||'').trim()
+        subtotal:  cleanN(r[cols.sub]),
+        importe:   imp,
+        pago:      String(r[cols.pago]||'').trim(),
+        fact:      String(r[cols.fact]||'').trim(),
+        cot:       cotNum
       });
     }
   }
@@ -1108,9 +1115,13 @@ function renderVentasLive(rows) {
     ).join('');
   }
 
-  // Update live badge
+  // Update live badge and table header
   const vBadge=document.getElementById('ventasLiveBadge');
-  if(vBadge) vBadge.textContent='Live · '+txns.length+' ventas · '+fmt(totalV);
+  if(vBadge) vBadge.textContent='● Live · '+txns.length+' ventas · '+fmt(totalV);
+  const vCountLbl=document.getElementById('vCountLbl');
+  if(vCountLbl) vCountLbl.textContent=txns.length;
+  const vTotalLbl=document.getElementById('vTotalLbl');
+  if(vTotalLbl) vTotalLbl.textContent=fmt(totalV);
 
   console.log('✅ Ventas live conectado: '+txns.length+' ventas, total '+fmt(totalV));
 }
