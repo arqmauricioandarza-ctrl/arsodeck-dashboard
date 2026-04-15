@@ -974,54 +974,146 @@ function renderGastosLive(rows) {
 // ── RENDER VENTAS LIVE ────────────────────────────────────────
 function renderVentasLive(rows) {
   const fi=(row,words)=>row.findIndex(c=>words.some(w=>String(c).toUpperCase().includes(w)));
+
+  // Header is row index 7 (row 8 in sheet)
   let hdr=-1, cols={};
-  for (let i=0; i<rows.length; i++) {
-    const r=rows[i], ci=fi(r,['CLIENTE']);
-    if (ci>=0 && !String(r[0]).includes('$') && String(r[ci]).toUpperCase()==='CLIENTE') {
-      hdr=i; cols.cliente=ci;
+  for (let i=0;i<rows.length;i++) {
+    const r=rows[i];
+    const ci=fi(r,['CLIENTE']);
+    if (ci>=0 && String(r[ci]).toUpperCase()==='CLIENTE') {
+      hdr=i; cols.origen=fi(r,['ORIGEN']);
+      cols.cliente=ci; cols.ubi=fi(r,['UBICAC']);
       cols.canal=fi(r,['CONTACTO','CANAL','MEDIO']);
-      cols.est=fi(r,['ESTATUS MATER','STATUS MATER']);
-      cols.fecha=fi(r,['FECHA']); cols.sub=fi(r,['SUBTOTAL']);
+      cols.cot=fi(r,['COT']); cols.estmat=fi(r,['ESTATUS MATER','STATUS MATER']);
+      cols.fechapago=fi(r,['FECHA DE PAGO']);
+      cols.sub=fi(r,['SUBTOTAL']);
       cols.imp=fi(r,['IMPORTE TOTAL','IMPORTE']);
       cols.pago=fi(r,['FORMA PAGO','PAGO']);
-      cols.fact=fi(r,['FACTURA','FACTUR']);
+      cols.fact=fi(r,['ESTATUS FACTURA','FACTURA']);
       break;
     }
   }
+
+  // Filter valid sales rows — skip test entries, totals, empty rows
+  const SKIP=['CLIENTE','ORIGEN','USO DE CFDI','G03','G01','BAJS','NAN','TOTAL','FORMAS DE PAGO',''];
   const txns=[];
-  const skip=['TOTAL','VENTAS','ORIGEN',''];
   if (hdr>=0) {
-    for (let i=hdr+1; i<rows.length; i++) {
+    for (let i=hdr+1;i<rows.length;i++) {
       const r=rows[i];
-      const imp=cleanN(r[cols.imp]), cli=String(r[cols.cliente]||'').trim();
-      if (cli && !skip.includes(cli.toUpperCase()) && imp>0) {
-        txns.push({cliente:cli,canal:String(r[cols.canal]||'').trim(),estatus:String(r[cols.est]||'').trim(),fecha:String(r[cols.fecha]||'').trim(),importe:imp,fact:String(r[cols.fact]||'').trim()});
-      }
+      const cli=String(r[cols.cliente]||'').trim();
+      const imp=cleanN(r[cols.imp]);
+      // Skip if no client, is a test/summary row, or amount too large (>500k single sale = likely error)
+      if (!cli || SKIP.includes(cli.toUpperCase()) || imp<=0 || imp>500000) continue;
+      txns.push({
+        cliente: cli,
+        canal:   String(r[cols.canal]||'').trim(),
+        estmat:  String(r[cols.estmat]||'').trim(),
+        fechapago: String(r[cols.fechapago]||'').trim(),
+        subtotal: cleanN(r[cols.sub]),
+        importe: imp,
+        pago:    String(r[cols.pago]||'').trim(),
+        fact:    String(r[cols.fact]||'').trim()
+      });
     }
   }
+
   const totalV=txns.reduce((s,t)=>s+t.importe,0);
+  const facturado=txns.filter(t=>{
+    const f=t.fact.toUpperCase();
+    return f.includes('FACTURADA') && !f.includes('PDTE');
+  }).reduce((s,t)=>s+t.importe,0);
+  const sinFact=txns.filter(t=>!t.fact||t.fact==='-'||t.fact.toUpperCase()==='PDTE FACTURA').reduce((s,t)=>s+t.importe,0);
   const pct=Math.min(100,Math.round(totalV/1100000*100));
 
-  // Update finanzas
-  document.getElementById('fVentasTxt').textContent = fmt(totalV);
-  document.getElementById('metaPctTxt').textContent = pct + '%';
-  document.getElementById('rVTxt').textContent = '$'+Math.round(totalV).toLocaleString('es-MX');
-  document.getElementById('rFTxt').textContent = '$'+Math.round(Math.max(0,1100000-totalV)).toLocaleString('es-MX');
-  document.getElementById('rDdTxt').textContent = '$'+Math.round(Math.max(0,1100000-totalV)/16).toLocaleString('es-MX');
+  // ── Update KPI cards ──
+  const el=id=>document.getElementById(id);
+  if(el('fVentasTxt'))  el('fVentasTxt').textContent  = fmt(totalV);
+  if(el('metaPctTxt'))  el('metaPctTxt').textContent  = pct+'%';
+  if(el('rVTxt'))       el('rVTxt').textContent       = '$'+Math.round(totalV).toLocaleString('es-MX');
+  if(el('rFTxt'))       el('rFTxt').textContent       = '$'+Math.round(Math.max(0,1100000-totalV)).toLocaleString('es-MX');
+  if(el('rDdTxt'))      el('rDdTxt').textContent      = '$'+Math.round(Math.max(0,1100000-totalV)/16).toLocaleString('es-MX');
+
+  // Update ventas section KPIs
+  const vTotalEl=document.querySelector('#sec-ventas .g4 .met:first-child .mval');
+  if(vTotalEl){ vTotalEl.textContent=fmt(totalV); }
+  const vSubEl=document.querySelector('#sec-ventas .g4 .met:first-child .msub');
+  if(vSubEl){ vSubEl.textContent=txns.length+' ventas registradas'; }
+
+  // Update facturacion card
+  const srEls=document.querySelectorAll('#sec-ventas .sr .srr');
+  if(srEls[0]) srEls[0].textContent='$'+Math.round(facturado).toLocaleString('es-MX');
+  if(srEls[3]) srEls[3].textContent='$'+Math.round(sinFact).toLocaleString('es-MX');
 
   // Update ring
-  if (window._metaChart) {
+  if(window._metaChart){
     window._metaChart.data.datasets[0].data=[pct,100-pct];
     window._metaChart.update();
   }
 
-  // Update ventas live badge
-  const vBadge = document.getElementById('ventasLiveBadge');
-  if (vBadge) vBadge.textContent = '● LIVE · ' + txns.length + ' ventas · ' + fmt(totalV);
+  // ── Rebuild sales table ──
+  const tbody=document.getElementById('vTbody');
+  if(tbody){
+    tbody.innerHTML='';
+    txns.forEach(t=>{
+      const em=t.estmat.toUpperCase();
+      const estBadge=em.includes('ENTREGADO')?'<span class="bdg bdg-g">Entregado</span>':
+        em.includes('PDTE')||em.includes('PENDIENTE')?'<span class="bdg bdg-a">Pdte entrega</span>':
+        '<span class="bdg bdg-x">'+t.estmat+'</span>';
+      const ff=t.fact.toUpperCase();
+      const factBadge=ff.includes('FACTURADA')&&!ff.includes('PDTE')?'<span class="bdg bdg-g">Sí</span>':
+        ff.includes('PDTE')?'<span class="bdg bdg-a">Pdte</span>':
+        '<span class="bdg bdg-x">Sin factura</span>';
+      const canalShort=t.canal.replace('W/ BSS (Quiby)','Quiby').replace('W/BSS (Bodega)','Bodega').replace('Arq MAR','Arq MAR');
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td class="cx" style="font-family:var(--mono);font-size:10px;">${t.fechapago||'—'}</td>
+        <td style="font-weight:500;font-size:12px;">${t.cliente}</td>
+        <td class="cx" style="font-size:10px;">—</td>
+        <td><span class="ctag">${canalShort}</span></td>
+        <td>${estBadge}</td>
+        <td style="text-align:right;font-family:var(--mono);">$${Math.round(t.importe).toLocaleString('es-MX')}</td>
+        <td>${factBadge}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
 
-  console.log('Ventas live: ' + txns.length + ' ventas, total ' + totalV);
+  // ── Update canal chart ──
+  const canalT={};
+  txns.forEach(t=>{
+    const k=t.canal.includes('Arq')||t.canal.includes('MAR')?'Arq MAR':
+      t.canal.includes('Quiby')||t.canal.includes('BSS')?'WhatsApp Quiby':
+      t.canal.includes('Bodega')?'Bodega':t.canal||'Otro';
+    canalT[k]=(canalT[k]||0)+t.importe;
+  });
+  const cE=Object.entries(canalT).sort((a,b)=>b[1]-a[1]);
+  if(window._vC){window._vC.destroy();}
+  window._vC=new Chart(document.getElementById('cVOrigen'),{
+    type:'doughnut',
+    data:{labels:cE.map(([k])=>k),datasets:[{
+      data:cE.map(([,v])=>v),
+      backgroundColor:['#f04e23','#22c97a','#f5a020','#7c4fff'],
+      borderWidth:0,cutout:'65%'
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{label:v=>v.label+': '+fmt(v.raw)}}
+    }}
+  });
+
+  // Update canal list
+  const canalList=document.getElementById('vCanalList');
+  if(canalList){
+    canalList.innerHTML=cE.map(([k,v])=>
+      `<div class="sr"><span class="srl">${k}</span><span class="srr">${fmt(v)} (${Math.round(v/totalV*100)}%)</span></div>`
+    ).join('');
+  }
+
+  // Update live badge
+  const vBadge=document.getElementById('ventasLiveBadge');
+  if(vBadge) vBadge.textContent='Live · '+txns.length+' ventas · '+fmt(totalV);
+
+  console.log('✅ Ventas live conectado: '+txns.length+' ventas, total '+fmt(totalV));
 }
-
 // ── INIT LIVE ─────────────────────────────────────────────────
 async function initLiveData() {
   // Load sequentially to avoid rate limits
