@@ -809,60 +809,38 @@ const PEDIDOS = [
   {mes:'ABRIL',fecha:'08/04',rastreo:'',proveedor:'SARO',origen:'CDMX',destino:'BODEGA ARSO',paqueteria:'—',pedido:'12511',estatus:'En tránsito',nota:'Sin guía aún'},
 ];
 
-// ── LIVE DATA via Google gviz JSONP ──────────────────────────
-// Usa el endpoint nativo de Google Sheets — sin redirecciones,
-// sin Apps Script, funciona desde cualquier origen https.
-const SHEET_IDS = {
-  gastos: '101xRJbkGeCJiwcTxynl_5Ky1ZC3gkgIFKPefzBNtWUg',
-  ventas: '14newGDb_GGj3Nd0WJXDexIHAnhBn4F8544c9O_0aRuw'
+// ── LIVE DATA via fetch + CSV publicado ──────────────────────
+// Desde GitHub Pages (https) el fetch a Google Sheets funciona sin CORS
+const SHEET_URLS = {
+  gastos: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPS80Ym4xs2XizU_lICf00ee5KV3e4Yhl28HoB5fvc1Yusfj9Fp39QFJt7viQzj0_m1kUmZvrl-BC1/pub?output=csv',
+  ventas: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTdgJdhcLZAXq-fR0499nX0E0Z0hB5wsyHI8rhob9ghIVXw2D6K-JjAtzQYbyjoT3fS-ks6fZiNzf7F/pub?output=csv'
 };
 
-function gvizToRows(data) {
-  if (!data || !data.table) return [];
-  const cols = data.table.cols || [];
-  const rows = data.table.rows || [];
-  const hdr  = cols.map(c => (c.label || '').trim());
-  const out  = rows.map(row => cols.map((_, i) => {
-    const cell = row.c ? row.c[i] : null;
-    if (!cell || cell.v === null || cell.v === undefined) return '';
-    if (cell.f !== null && cell.f !== undefined && cell.f !== '') return String(cell.f);
-    return String(cell.v);
-  }));
-  return [hdr, ...out];
+function parseCSV(text) {
+  const rows = []; let cur = '', inQ = false, row = [];
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"') { inQ = !inQ; }
+    else if (c === ',' && !inQ) { row.push(cur.trim()); cur = ''; }
+    else if ((c === '\n' || c === '\r') && !inQ) {
+      row.push(cur.trim());
+      if (row.some(v => v)) rows.push(row);
+      cur = ''; row = [];
+      if (c === '\r' && text[i+1] === '\n') i++;
+    } else { cur += c; }
+  }
+  if (row.length) { row.push(cur.trim()); if (row.some(v=>v)) rows.push(row); }
+  return rows;
 }
 
-function loadLiveData(tipo) {
-  return new Promise((resolve, reject) => {
-    const id     = SHEET_IDS[tipo];
-    const cbName = '_gviz_' + tipo + '_' + Date.now();
-    const timer  = setTimeout(() => {
-      cleanup();
-      reject(new Error('Timeout — verifica que el sheet sea público'));
-    }, 15000);
-
-    function cleanup() {
-      clearTimeout(timer);
-      delete window[cbName];
-      const s = document.getElementById(cbName);
-      if (s) s.remove();
-    }
-
-    window[cbName] = function(data) {
-      cleanup();
-      try {
-        const rows = gvizToRows(data);
-        if (rows.length > 0) resolve(rows);
-        else reject(new Error('Sin datos'));
-      } catch(e) { reject(e); }
-    };
-
-    const script   = document.createElement('script');
-    script.id      = cbName;
-    script.src     = 'https://docs.google.com/spreadsheets/d/' + id +
-                     '/gviz/tq?tqx=out:json&callback=' + cbName;
-    script.onerror = () => { cleanup(); reject(new Error('Error cargando sheet')); };
-    document.head.appendChild(script);
-  });
+async function loadLiveData(tipo) {
+  const url = SHEET_URLS[tipo];
+  const r = await fetch(url, { cache: 'no-cache' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const text = await r.text();
+  const rows = parseCSV(text);
+  if (rows.length < 2) throw new Error('Sin datos');
+  return rows;
 }
 
 function cleanN(v) {
