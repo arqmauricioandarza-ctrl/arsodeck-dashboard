@@ -642,20 +642,36 @@ async function checkPwd() {
       <div class="met"><div class="met-top"><div class="met-icon ic-a">📦</div><span class="met-trend tr-na">Mes</span></div><div class="mlbl">Total pedidos</div><div class="mval" id="pTotal">—</div><div class="msub">Registrados este mes</div></div>
     </div>
     <div id="pAlerts"></div>
-    <div class="card">
+        <div class="card">
       <div class="card-hdr">
-        <div class="ctit">Todos los pedidos — Abril 2026</div>
-        <div style="display:flex;gap:6px;">
-          <button class="pfiltro on" onclick="filtrarPedidos('todos',this)">Todos (41)</button>
+        <div class="ctit">Seguimiento de envíos — 2026 · 41 registros</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="pfiltro on" onclick="filtrarPedidos('todos',this)">Todos</button>
+          <button class="pfiltro" onclick="filtrarPedidos('ABRIL',this)">Abr 26</button>
+          <button class="pfiltro" onclick="filtrarPedidos('MARZO',this)">Mar 26</button>
+          <button class="pfiltro" onclick="filtrarPedidos('FEBRERO',this)">Feb 26</button>
+          <button class="pfiltro" onclick="filtrarPedidos('ENERO',this)">Ene 26</button>
           <button class="pfiltro" onclick="filtrarPedidos('En tránsito',this)">🚛 En tránsito</button>
-          <button class="pfiltro" onclick="filtrarPedidos('Entregado',this)">✓ Recibidos</button>
           <button class="pfiltro" onclick="filtrarPedidos('Problema / Incidencia',this)">⚠ Con daño</button>
         </div>
       </div>
-      <div class="tw"><table class="tbl" id="pTbl">
-        <thead><tr><th>Mes</th><th>Fecha</th><th>Proveedor</th><th>Paquetería</th><th>Guía / Rastreo</th><th>Origen</th><th>Destino</th><th>Pedido #</th><th>Estatus</th><th>Nota</th></tr></thead>
-        <tbody id="pTbody"></tbody>
-      </table></div>
+      <div class="tw" style="max-height:500px;overflow-y:auto;">
+        <table class="tbl" id="pTbl">
+          <thead><tr>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Mes</th>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Fecha</th>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Proveedor</th>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Paquetería</th>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Guía / Rastreo</th>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Origen</th>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Destino</th>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Pedido #</th>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Estatus</th>
+            <th style="position:sticky;top:0;background:var(--card);z-index:2;">Nota</th>
+          </tr></thead>
+          <tbody id="pTbody"></tbody>
+        </table>
+      </div>
     </div>
     <div class="g2">
       <div class="card">
@@ -1287,19 +1303,23 @@ function renderVentasLive(rows) {
   }).reduce((s,t) => s+t.importe, 0);
   const pct=Math.min(100,Math.round(totalV/1100000*100));
 
-  // ── Update KPI cards ──
+  // ── Update KPI cards — safe null checks ──
   const el=id=>document.getElementById(id);
-  if(el('fVentasTxt'))  el('fVentasTxt').textContent  = fmt(totalV);
-  if(el('metaPctTxt'))  el('metaPctTxt').textContent  = pct+'%';
-  if(el('rVTxt'))       el('rVTxt').textContent       = '$'+Math.round(totalV).toLocaleString('es-MX');
-  if(el('rFTxt'))       el('rFTxt').textContent       = '$'+Math.round(Math.max(0,1100000-totalV)).toLocaleString('es-MX');
-  if(el('rDdTxt'))      el('rDdTxt').textContent      = '$'+Math.round(Math.max(0,1100000-totalV)/16).toLocaleString('es-MX');
+  const setEl=(id,val)=>{ const e=el(id); if(e) e.textContent=val; };
+  const mxFmt2=n=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 
-  // Update ventas section KPIs
+  setEl('fVentasTxt', fmt(totalV));
+  setEl('metaPctTxt', pct+'%');
+  setEl('rVTxt', mxFmt2(totalV));
+  setEl('rFTxt', mxFmt2(Math.max(0,1100000-totalV)));
+  setEl('rDdTxt', mxFmt2(Math.max(0,1100000-totalV)/16));
+  setEl('vCountLbl', txns.length);
+  setEl('vTotalLbl', fmt(totalV));
+
   const vTotalEl=document.querySelector('#sec-ventas .g4 .met:first-child .mval');
-  if(vTotalEl){ vTotalEl.textContent=fmt(totalV); }
+  if(vTotalEl) vTotalEl.textContent=fmt(totalV);
   const vSubEl=document.querySelector('#sec-ventas .g4 .met:first-child .msub');
-  if(vSubEl){ vSubEl.textContent=txns.length+' ventas registradas'; }
+  if(vSubEl) vSubEl.textContent=txns.length+' ventas registradas';
 
   // Update facturación card with correct IDs
   const mxD = n => '$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1326,9 +1346,9 @@ function renderVentasLive(rows) {
   }
 
   // Update ring
-  if(window._metaChart){
-    window._metaChart.data.datasets[0].data=[pct,100-pct];
-    window._metaChart.update();
+  if(window._metaChart && window._metaChart.data){
+    try{window._metaChart.data.datasets[0].data=[pct,100-pct]; window._metaChart.update();}
+    catch(e){console.warn('meta chart update error:',e.message);}
   }
 
   // ── Rebuild sales table ──
@@ -1367,8 +1387,9 @@ function renderVentasLive(rows) {
     canalT[k]=(canalT[k]||0)+t.importe;
   });
   const cE=Object.entries(canalT).sort((a,b)=>b[1]-a[1]);
-  if(window._vC){window._vC.destroy();}
-  window._vC=new Chart(document.getElementById('cVOrigen'),{
+  const cVOrigenEl=document.getElementById('cVOrigen');
+  if(window._vC){window._vC.destroy(); window._vC=null;}
+  if(cVOrigenEl) window._vC=new Chart(cVOrigenEl,{
     type:'doughnut',
     data:{labels:cE.map(([k])=>k),datasets:[{
       data:cE.map(([,v])=>v),
@@ -1513,10 +1534,22 @@ function renderPedidos(lista) {
   });
 }
 
-function filtrarPedidos(est,btn){
+// Month order for sorting
+const MES_ORDER={'ABRIL':4,'MARZO':3,'FEBRERO':2,'ENERO':1};
+// Sort PEDIDOS newest first
+const PEDIDOS_SORTED=[...PEDIDOS].sort((a,b)=>(MES_ORDER[b.mes]||0)-(MES_ORDER[a.mes]||0));
+
+function filtrarPedidos(filtro,btn){
   document.querySelectorAll('.pfiltro').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
-  renderPedidos(est==='todos'?PEDIDOS:PEDIDOS.filter(p=>p.estatus===est));
+  let lista=PEDIDOS_SORTED;
+  if(filtro==='todos') { /* all */ }
+  else if(['ABRIL','MARZO','FEBRERO','ENERO'].includes(filtro)) {
+    lista=PEDIDOS_SORTED.filter(p=>p.mes===filtro);
+  } else {
+    lista=PEDIDOS_SORTED.filter(p=>p.estatus===filtro);
+  }
+  renderPedidos(lista);
 }
 
 (function initPedidos(){
@@ -1540,7 +1573,7 @@ function filtrarPedidos(est,btn){
       <span style="color:var(--muted2);">Origen: ${p.origen} → ${p.destino} · ${p.mes} ${p.fecha}</span></div></div>`;
   });
 
-  renderPedidos(PEDIDOS);
+  renderPedidos(PEDIDOS_SORTED);
   const paqT={};
   PEDIDOS.forEach(p=>{paqT[p.paqueteria]=(paqT[p.paqueteria]||0)+1;});
   // Order: PAQUETEXPRESS, CASTORES, POTOSINOS, TRES GUERRAS
