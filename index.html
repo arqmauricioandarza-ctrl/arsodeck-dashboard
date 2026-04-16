@@ -528,7 +528,7 @@ async function checkPwd() {
       <div class="met"><div class="met-top"><div class="met-icon ic-o">💵</div><span class="met-trend tr-na">Abr 2026</span></div><div class="mlbl">Total abril 2026</div><div class="mval">$268k</div><div class="msub">7 ventas registradas</div></div>
       <div class="met"><div class="met-top"><div class="met-icon ic-g">🏆</div><span class="met-trend tr-up">Récord</span></div><div class="mlbl">Mejor mes histórico</div><div class="mval">$3.01M</div><div class="msub">Junio 2025</div></div>
       <div class="met"><div class="met-top"><div class="met-icon ic-b">📊</div><span class="met-trend tr-na">2025</span></div><div class="mlbl">Promedio 2025</div><div class="mval">$962k</div><div class="msub">Incluye mes récord</div></div>
-      <div class="met"><div class="met-top"><div class="met-icon ic-a">⚠</div><span class="met-trend tr-dn">Mín</span></div><div class="mlbl">Margen más bajo</div><div class="mval">1.9%</div><div class="msub">Septiembre 2025</div></div>
+      <div class="met"><div class="met-top"><div class="met-icon ic-a">⚠</div><span class="met-trend tr-dn">Mín</span></div><div class="mlbl">Break-even operativo</div><div class="mval" id="vBreakVal">$651k</div><div class="msub" id="vBreakSub">Mínimo para cubrir gastos</div></div>
     </div>
     <div class="g21">
       <div class="card">
@@ -562,15 +562,15 @@ async function checkPwd() {
           <div class="card-hdr"><div class="ctit">Canal de origen — Mar 2026</div></div>
           <div class="ch ch160"><canvas id="cOrigen"></canvas></div>
           <div class="dv"></div>
-          <div class="sr"><span class="srl">Arq MAR</span><span class="srr cb">54.7% — $614k</span></div>
-          <div class="sr"><span class="srl">WhatsApp Quiby</span><span class="srr cg">44.4% — $499k</span></div>
-          <div class="sr"><span class="srl">Bodega</span><span class="srr cx">0.9% — $10k</span></div>
+          <div id="vCanalList">
+            <div class="sr"><span class="srl">Cargando…</span><span class="srr cx">—</span></div>
+          </div>
         </div>
         <div class="card">
           <div class="card-hdr"><div class="ctit">Facturación — Abril 2026</div></div>
-          <div class="sr"><span class="srl">Facturado</span><span class="srr cg">$3,900</span></div>
-          <div class="sr"><span class="srl">Pendiente CFDI</span><span class="srr ca">$306,967</span></div>
-          <div class="sr"><span class="srl">Sin factura</span><span class="srr cx">$180,800</span></div>
+          <div class="sr"><span class="srl">Facturado (CFDI emitido)</span><span class="srr cg" id="vFacturado">—</span></div>
+          <div class="sr"><span class="srl">Pendiente CFDI</span><span class="srr ca" id="vPdteFact">—</span></div>
+          <div class="sr"><span class="srl">Sin factura (efectivo/TDD)</span><span class="srr cx" id="vSinFact">—</span></div>
         </div>
       </div>
     </div>
@@ -1177,11 +1177,21 @@ function renderVentasLive(rows) {
   }
 
   const totalV=txns.reduce((s,t)=>s+t.importe,0);
-  const facturado=txns.filter(t=>{
-    const f=t.fact.toUpperCase();
-    return f.includes('FACTURADA') && !f.includes('PDTE');
-  }).reduce((s,t)=>s+t.importe,0);
-  const sinFact=txns.filter(t=>!t.fact||t.fact==='-'||t.fact.toUpperCase()==='PDTE FACTURA').reduce((s,t)=>s+t.importe,0);
+  // Facturado = CFDI emitido (FACTURADA, no pendiente)
+  const facturado = txns.filter(t => {
+    const f = t.fact.toUpperCase().trim();
+    return f === 'FACTURADA' || f === 'FACTURADO';
+  }).reduce((s,t) => s+t.importe, 0);
+  // Pendiente CFDI = acordado pero no emitido aún
+  const pdteFact = txns.filter(t => {
+    const f = t.fact.toUpperCase().trim();
+    return f.includes('PDTE') || f.includes('PENDIENTE');
+  }).reduce((s,t) => s+t.importe, 0);
+  // Sin factura = ventas en efectivo/TDD sin CFDI (- o vacío)
+  const sinFact = txns.filter(t => {
+    const f = t.fact.trim();
+    return !f || f === '-' || f.toUpperCase() === 'SIN FACTURA';
+  }).reduce((s,t) => s+t.importe, 0);
   const pct=Math.min(100,Math.round(totalV/1100000*100));
 
   // ── Update KPI cards ──
@@ -1198,10 +1208,29 @@ function renderVentasLive(rows) {
   const vSubEl=document.querySelector('#sec-ventas .g4 .met:first-child .msub');
   if(vSubEl){ vSubEl.textContent=txns.length+' ventas registradas'; }
 
-  // Update facturacion card
-  const srEls=document.querySelectorAll('#sec-ventas .sr .srr');
-  if(srEls[0]) srEls[0].textContent='$'+Math.round(facturado).toLocaleString('es-MX');
-  if(srEls[3]) srEls[3].textContent='$'+Math.round(sinFact).toLocaleString('es-MX');
+  // Update facturación card with correct IDs
+  const mxD = n => '$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(document.getElementById('vFacturado')) document.getElementById('vFacturado').textContent = mxD(facturado);
+  if(document.getElementById('vPdteFact'))  document.getElementById('vPdteFact').textContent  = mxD(pdteFact);
+  if(document.getElementById('vSinFact'))   document.getElementById('vSinFact').textContent   = mxD(sinFact);
+
+  // Update break-even card
+  const GASTOS_FIJOS = 261146;
+  const faltaBreak = GASTOS_FIJOS - totalV;
+  const bEl = document.getElementById('vBreakVal');
+  const bSub = document.getElementById('vBreakSub');
+  const bTrend = document.getElementById('vBreakTrend');
+  if(bEl) {
+    if(faltaBreak > 0) {
+      bEl.textContent = '$'+Math.round(faltaBreak).toLocaleString('es-MX');
+      if(bSub) bSub.textContent = 'Falta para cubrir gastos';
+      if(bTrend) { bTrend.textContent='↓ Déficit'; bTrend.className='met-trend tr-dn'; }
+    } else {
+      bEl.textContent = '+$'+Math.round(Math.abs(faltaBreak)).toLocaleString('es-MX');
+      if(bSub) bSub.textContent = 'Superado — gastos cubiertos';
+      if(bTrend) { bTrend.textContent='✓ Cubierto'; bTrend.className='met-trend tr-up'; }
+    }
+  }
 
   // Update ring
   if(window._metaChart){
