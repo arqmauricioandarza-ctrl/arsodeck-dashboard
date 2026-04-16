@@ -582,7 +582,7 @@ async function checkPwd() {
       <div class="met"><div class="met-top"><div class="met-icon ic-g">🏦</div><span class="met-trend tr-na">Mensual</span></div><div class="mlbl">Gastos del mes</div><div class="mval" id="gTotalVal">cargando…</div><div class="msub" id="gTotalSub">—</div></div>
       <div class="met"><div class="met-top"><div class="met-icon ic-b">👥</div><span class="met-trend tr-na">6 personas</span></div><div class="mlbl">Compras material</div><div class="mval" id="gComprasVal">—</div><div class="msub">Mayor gasto del mes</div></div>
       <div class="met"><div class="met-top"><div class="met-icon ic-r">🏢</div><span class="met-trend tr-na">Fijo</span></div><div class="mlbl">Nóminas</div><div class="mval" id="gNominasVal">—</div><div class="msub">Equipo ARSODECK</div></div>
-      <div class="met"><div class="met-top"><div class="met-icon ic-o">📣</div><span class="met-trend tr-na">Mensual</span></div><div class="mlbl">Sin factura</div><div class="mval" id="gSinFactVal">—</div><div class="msub">A regularizar</div></div>
+      <div class="met"><div class="met-top"><div class="met-icon ic-o">📣</div><span class="met-trend tr-na">Mensual</span></div><div class="mlbl">Marketing</div><div class="mval" id="gMktVal">—</div><div class="msub">Publicidad + agencia</div></div>
     </div>
     <!-- Transacciones del mes en vivo -->
     <div class="g21" style="align-items:start;">
@@ -620,6 +620,17 @@ async function checkPwd() {
     <div class="card">
       <div class="card-hdr"><div class="ctit">Gastos por mes — últimos 6 meses</div></div>
       <div class="ch ch200"><canvas id="cGMes"></canvas></div>
+    </div>
+    <!-- Compras por proveedor -->
+    <div class="g2">
+      <div class="card">
+        <div class="card-hdr"><div class="ctit">Compras de material — por proveedor (mes actual)</div></div>
+        <div id="gProvBars"><div class="cx" style="font-size:12px;padding:8px 0;">Cargando…</div></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div class="ctit">Distribución por proveedor</div></div>
+        <div class="ch ch160"><canvas id="cGProv"></canvas></div>
+      </div>
     </div>  </div>
 
   <!-- ═══ PEDIDOS ═══ -->
@@ -1003,16 +1014,21 @@ function renderGastosLive(rows) {
     }
   }
 
-  // Get summary totals from top of sheet (above header)
-  let totalSheet=0, comprasT=0, nominasT=0;
-  for (let i=0;i<Math.min(hdr,rows.length);i++) {
+  // Get summary totals — scan ALL rows before header, pick the largest TOTAL
+  let totalSheet=0, comprasT=0, nominasT=0, publicidadT=0;
+  for (let i=0;i<Math.min(hdr+1,rows.length);i++) {
     const r=rows[i];
-    for (let j=0;j<r.length-1;j++) {
-      const v=cleanN(r[j+1]);
+    for (let j=0;j<r.length;j++) {
       const k=String(r[j]||'').toUpperCase().trim();
-      if (k==='TOTAL' && v>totalSheet) totalSheet=v;
-      if (k==='COMPRAS') comprasT=v;
-      if (k==='NOMINAS'||k==='NÓMINAS') nominasT=v;
+      // Check next cell AND same-row cells for values
+      for (let jj=j+1;jj<Math.min(j+3,r.length);jj++) {
+        const v=cleanN(r[jj]);
+        if (v<=0) continue;
+        if (k==='TOTAL' && v>totalSheet) totalSheet=v;
+        if (k==='COMPRAS') comprasT=Math.max(comprasT,v);
+        if (k==='NOMINAS'||k==='NÓMINAS') nominasT=Math.max(nominasT,v);
+        if (k==='PUBLICIDAD') publicidadT=Math.max(publicidadT,v);
+      }
     }
   }
 
@@ -1047,13 +1063,13 @@ function renderGastosLive(rows) {
   const gTotSub = document.getElementById('gTotalSub');
   const gCompEl = document.getElementById('gComprasVal');
   const gNomEl  = document.getElementById('gNominasVal');
-  const gSinEl  = document.getElementById('gSinFactVal');
+  const gSinEl  = document.getElementById('gMktVal');
 
   if(gTotEl)  gTotEl.textContent  = fmtF(realTotal);
   if(gTotSub) gTotSub.textContent = txns.length+' transacciones registradas';
   if(gCompEl) gCompEl.textContent = fmtF(compras);
   if(gNomEl)  gNomEl.textContent  = fmtF(nominas);
-  if(gSinEl)  gSinEl.textContent  = fmtF(sinFact);
+  if(gSinEl)  gSinEl.textContent  = fmtF(publicidadT || catT['PUBLICIDAD'] || 0);
 
   // Update finanzas gastos card
   if(document.getElementById('fGastosTxt'))
@@ -1083,33 +1099,110 @@ function renderGastosLive(rows) {
   }
 
   // ── Rebuild category bars ──
+  const CAT_NAMES={'COMPRAS':'Compras de material','NOMINAS':'Nóminas','OTROS GASTOS':'Otros gastos',
+    'PUBLICIDAD':'Publicidad','GASTOS GRAL':'Gastos generales','CAMIONETA':'Camioneta',
+    'SOFTWARE':'Software','IMPUESTOS':'Impuestos','SERVICIOS OFICINA':'Servicios oficina',
+    'BODEGA':'Bodega','LIMPIEZA':'Limpieza','GASOLINA':'Gasolina','IMSS':'IMSS'};
   const gCatBars = document.getElementById('gCatBars');
   if(gCatBars) {
     const top=Object.entries(catT).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const totalCat=top.reduce((s,[,v])=>s+v,0);
     const mx=top[0]?top[0][1]:1;
     const clrs=['var(--accent)','var(--red)','var(--amber)','var(--green)','var(--a2)','var(--teal)','#ff7a52','#378ADD','var(--muted2)','var(--muted)'];
-    gCatBars.innerHTML=top.map(([k,v],i)=>`
-      <div class="prow">
-        <div class="phdr"><span class="plbl">${k}</span><span class="pval">${fmtF(v)}</span></div>
+    gCatBars.innerHTML=top.map(([k,v],i)=>{
+      const pct=totalCat>0?((v/totalCat)*100).toFixed(1):'0';
+      const nm=CAT_NAMES[k.toUpperCase()]||k;
+      return `<div class="prow">
+        <div class="phdr"><span class="plbl">${nm}</span><span class="pval">${fmtF(v)} <span style="color:var(--muted);font-size:9px;">(${pct}%)</span></span></div>
         <div class="ptrack"><div class="pfill" style="width:${(v/mx*100).toFixed(1)}%;background:${clrs[i]};"></div></div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   // ── Rebuild pie chart ──
   const top8=Object.entries(catT).sort((a,b)=>b[1]-a[1]).slice(0,8);
   if(window._gP) window._gP.destroy();
+  const totalPie=top8.reduce((s,[,v])=>s+v,0);
   window._gP=new Chart(document.getElementById('cGPie'),{
     type:'doughnut',
-    data:{labels:top8.map(([k])=>k),datasets:[{
+    data:{labels:top8.map(([k])=>CAT_NAMES[k.toUpperCase()]||k),datasets:[{
       data:top8.map(([,v])=>v),
       backgroundColor:['#4f7dff','#f04060','#f5a623','#27c77a','#7c4fff','#00bfa5','#ff7a52','#505068'],
-      borderWidth:0,cutout:'62%'
+      borderWidth:2,borderColor:'var(--bg3)',cutout:'58%'
     }]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{
-      legend:{display:false},
-      tooltip:{callbacks:{label:v=>v.label+': '+fmtF(v.raw)}}
-    }}
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{
+          display:true,position:'bottom',
+          labels:{font:{size:10},color:'#8888a8',padding:8,
+            generateLabels:chart=>{
+              const ds=chart.data.datasets[0];
+              return chart.data.labels.map((l,i)=>({
+                text:l+' '+((ds.data[i]/totalPie)*100).toFixed(0)+'%',
+                fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',
+                index:i
+              }));
+            }
+          }
+        },
+        tooltip:{callbacks:{
+          label:v=>{
+            const pct=((v.raw/totalPie)*100).toFixed(1);
+            return ' '+v.label+': '+fmtF(v.raw)+' ('+pct+'%)';
+          }
+        }}
+      }
+    }
   });
+
+  // ── Compras por proveedor ──────────────────────────────────────
+  const PROVEEDORES_CONOCIDOS=['TEKNOSTEP','SAROTECH','QUALITY','EXTRUTECH','NEWTECH','NEW TECH','NEWTECHWOOD'];
+  const provT={};
+  txns.filter(t=>t.cuenta.toUpperCase()==='COMPRAS').forEach(t=>{
+    const g=t.gasto.toUpperCase().trim();
+    let prov='Otro';
+    if(g.includes('TEKNOSTEP')) prov='Teknostep';
+    else if(g.includes('SAROTECH')||g.includes('SARO')) prov='Sarotech';
+    else if(g.includes('QUALITY')) prov='Quality Outdoor';
+    else if(g.includes('EXTRUTECH')) prov='Extrutech';
+    else if(g.includes('NEWTECH')||g.includes('NEW TECH')) prov='NewTechWood';
+    else prov=t.gasto||'Otro';
+    provT[prov]=(provT[prov]||0)+t.importe;
+  });
+  const provEntries=Object.entries(provT).sort((a,b)=>b[1]-a[1]);
+  const totalProv=provEntries.reduce((s,[,v])=>s+v,0);
+  const provBars=document.getElementById('gProvBars');
+  const provColors={'Teknostep':'#4f7dff','Sarotech':'#f5a020','Quality Outdoor':'#f04060',
+    'Extrutech':'#7c4fff','NewTechWood':'#00bfa5','Otro':'#505068'};
+  if(provBars && provEntries.length>0) {
+    const mxP=provEntries[0][1];
+    provBars.innerHTML=provEntries.map(([k,v])=>{
+      const pct=totalProv>0?((v/totalProv)*100).toFixed(1):'0';
+      const c=provColors[k]||'var(--muted2)';
+      return `<div class="prow">
+        <div class="phdr"><span class="plbl">${k}</span><span class="pval">${fmtF(v)} <span style="color:var(--muted);font-size:9px;">(${pct}%)</span></span></div>
+        <div class="ptrack"><div class="pfill" style="width:${(v/mxP*100).toFixed(1)}%;background:${c};"></div></div>
+      </div>`;
+    }).join('');
+  } else if(provBars) {
+    provBars.innerHTML='<div class="cx" style="font-size:11px;">Sin compras de material registradas</div>';
+  }
+  // Proveedor pie
+  if(window._gProv) window._gProv.destroy();
+  if(provEntries.length>0) {
+    window._gProv=new Chart(document.getElementById('cGProv'),{
+      type:'doughnut',
+      data:{labels:provEntries.map(([k])=>k),datasets:[{
+        data:provEntries.map(([,v])=>v),
+        backgroundColor:provEntries.map(([k])=>provColors[k]||'#505068'),
+        borderWidth:2,borderColor:'var(--bg3)',cutout:'55%'
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{
+        legend:{display:true,position:'bottom',labels:{font:{size:10},color:'#8888a8',padding:6}},
+        tooltip:{callbacks:{label:v=>' '+v.label+': '+fmtF(v.raw)+' ('+(v.raw/totalProv*100).toFixed(1)+'%)'}}
+      }}
+    });
+  }
 
   // Update gastos live badge
   const gBadge=document.getElementById('gastosLiveBadge');
@@ -1308,22 +1401,31 @@ function renderVentasLive(rows) {
 }
 // ── INIT LIVE ─────────────────────────────────────────────────
 async function initLiveData() {
+  // Detect current month from today's date to show in UI
+  const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const hoy=new Date();
+  const mesActual=MESES[hoy.getMonth()]+' '+String(hoy.getFullYear()).slice(2);
+  // Update section titles with current month
+  const vMesEl=document.getElementById('vMesLbl');
+  if(vMesEl) vMesEl.textContent=MESES[hoy.getMonth()]+' 2026';
+
   // Load sequentially to avoid rate limits
   try {
     const ventasRows = await loadLiveData('ventas');
     if (ventasRows) {
       renderVentasLive(ventasRows);
-      console.log('✅ Ventas live conectado');
+      console.log('✅ Ventas live conectado — mes activo: hoja 1 del sheet');
     }
   } catch(e) { console.warn('Ventas offline:', e.message); }
 
-  await new Promise(r => setTimeout(r, 2000)); // wait 2s between calls
+  await new Promise(r => setTimeout(r, 2000));
 
   try {
     const gastosRows = await loadLiveData('gastos');
     if (gastosRows) {
       renderGastosLive(gastosRows);
-      console.log('✅ Gastos live conectado');
+      console.log('✅ Gastos live conectado — mes activo: hoja 1 del sheet');
     }
   } catch(e) { console.warn('Gastos offline:', e.message); }
 
