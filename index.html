@@ -439,6 +439,68 @@ async function checkPwd() {
       </div>
     </div>
 
+    <!-- Posición de efectivo EDITABLE -->
+    <div class="card" id="cashCard" style="margin-bottom:14px;background:linear-gradient(135deg,rgba(79,125,255,.06),rgba(34,201,122,.04));border-color:rgba(79,125,255,.18);">
+      <div class="card-hdr">
+        <div class="ctit">💰 Posición de efectivo</div>
+        <button onclick="toggleCashEdit()" id="cashEditBtn" style="font-size:10px;font-family:var(--mono);background:rgba(79,125,255,.15);border:1px solid rgba(79,125,255,.3);color:var(--accent);padding:4px 10px;border-radius:5px;cursor:pointer;">✏ Editar</button>
+      </div>
+
+      <!-- VISTA -->
+      <div id="cashView">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+          <div style="text-align:center;padding:14px 10px;background:var(--card);border-radius:9px;border:1px solid var(--border);">
+            <div style="font-size:9px;color:var(--muted2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">En BBVA</div>
+            <div id="vBBVA" style="font-size:22px;font-weight:700;color:var(--blue);">—</div>
+          </div>
+          <div style="text-align:center;padding:14px 10px;background:var(--card);border-radius:9px;border:1px solid var(--border);">
+            <div style="font-size:9px;color:var(--muted2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Efectivo</div>
+            <div id="vEfectivo" style="font-size:22px;font-weight:700;color:var(--green);">—</div>
+          </div>
+          <div style="text-align:center;padding:14px 10px;background:var(--card);border-radius:9px;border:1px solid var(--border);">
+            <div style="font-size:9px;color:var(--muted2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Total disponible</div>
+            <div id="vTotal" style="font-size:22px;font-weight:700;color:var(--text);">—</div>
+          </div>
+          <div id="cashStatusCard" style="text-align:center;padding:14px 10px;background:var(--card);border-radius:9px;border:1px solid var(--border);">
+            <div style="font-size:9px;color:var(--muted2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Estado</div>
+            <div id="vStatus" style="font-size:14px;font-weight:700;">—</div>
+          </div>
+        </div>
+        <!-- Pagos pendientes -->
+        <div style="background:var(--card);border-radius:9px;border:1px solid var(--border);padding:12px 16px;">
+          <div style="font-size:9px;color:var(--muted2);font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Pagos pendientes por realizar</div>
+          <div id="vPendientes" style="font-size:12px;color:var(--muted2);">—</div>
+          <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+            <div class="sr"><span class="srl">Total pendientes</span><span class="srr cr" id="vTotalPend">—</span></div>
+            <div class="sr"><span class="srl">Disponible después</span><span class="srr" id="vDispDespues">—</span></div>
+            <div class="sr"><span class="srl">Última actualización</span><span class="srr cx" id="vLastUpdate">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EDICIÓN -->
+      <div id="cashEdit" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div>
+            <label style="font-size:10px;color:var(--muted2);font-family:var(--mono);display:block;margin-bottom:5px;">BBVA ($)</label>
+            <input id="iBBVA" type="number" placeholder="74389" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:14px;font-family:var(--mono);outline:none;">
+          </div>
+          <div>
+            <label style="font-size:10px;color:var(--muted2);font-family:var(--mono);display:block;margin-bottom:5px;">EFECTIVO ($)</label>
+            <input id="iEfectivo" type="number" placeholder="123000" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:14px;font-family:var(--mono);outline:none;">
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:10px;color:var(--muted2);font-family:var(--mono);display:block;margin-bottom:5px;">PAGOS PENDIENTES — uno por línea: "Descripción | $monto"</label>
+          <textarea id="iPendientes" rows="4" placeholder="Flete Monterrey | 5000&#10;Renta bodega | 28600&#10;Pago proveedor X | 15000" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:12px;font-family:var(--mono);outline:none;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button onclick="cancelCashEdit()" style="font-size:12px;font-family:var(--mono);background:transparent;border:1px solid var(--border2);color:var(--muted2);padding:8px 16px;border-radius:7px;cursor:pointer;">Cancelar</button>
+          <button onclick="saveCash()" style="font-size:12px;font-family:var(--mono);background:var(--accent);border:none;color:#fff;padding:8px 18px;border-radius:7px;cursor:pointer;font-weight:600;">Guardar</button>
+        </div>
+      </div>
+    </div>
+
     <div class="g2">
       <div class="card">
         <div class="card-hdr"><div class="ctit">Utilidad mensual — últimos 12 meses</div></div>
@@ -517,55 +579,48 @@ async function checkPwd() {
   <!-- ═══ GASTOS ═══ -->
   <div id="sec-gastos" class="sec">
     <div class="g4">
-      <div class="met"><div class="met-top"><div class="met-icon ic-g">🏦</div><span class="met-trend tr-na">Mensual</span></div><div class="mlbl">Gastos fijos sin retiro</div><div class="mval">$261k</div><div class="msub">Operación mensual</div></div>
-      <div class="met"><div class="met-top"><div class="met-icon ic-b">👥</div><span class="met-trend tr-na">6 personas</span></div><div class="mlbl">Nómina equipo</div><div class="mval">$80.5k</div><div class="msub">Incluye SIPARE y 3%</div></div>
-      <div class="met"><div class="met-top"><div class="met-icon ic-r">🏢</div><span class="met-trend tr-na">Fijo</span></div><div class="mlbl">Torre Vela</div><div class="mval">$42k</div><div class="msub">Depa — paga empresa</div></div>
-      <div class="met"><div class="met-top"><div class="met-icon ic-o">📣</div><span class="met-trend tr-na">Mensual</span></div><div class="mlbl">Marketing total</div><div class="mval">$22k</div><div class="msub">Agencia + pauta + leads</div></div>
+      <div class="met"><div class="met-top"><div class="met-icon ic-g">🏦</div><span class="met-trend tr-na">Mensual</span></div><div class="mlbl">Gastos del mes</div><div class="mval" id="gTotalVal">cargando…</div><div class="msub" id="gTotalSub">—</div></div>
+      <div class="met"><div class="met-top"><div class="met-icon ic-b">👥</div><span class="met-trend tr-na">6 personas</span></div><div class="mlbl">Compras material</div><div class="mval" id="gComprasVal">—</div><div class="msub">Mayor gasto del mes</div></div>
+      <div class="met"><div class="met-top"><div class="met-icon ic-r">🏢</div><span class="met-trend tr-na">Fijo</span></div><div class="mlbl">Nóminas</div><div class="mval" id="gNominasVal">—</div><div class="msub">Equipo ARSODECK</div></div>
+      <div class="met"><div class="met-top"><div class="met-icon ic-o">📣</div><span class="met-trend tr-na">Mensual</span></div><div class="mlbl">Sin factura</div><div class="mval" id="gSinFactVal">—</div><div class="msub">A regularizar</div></div>
     </div>
-    <div class="g21">
+    <!-- Transacciones del mes en vivo -->
+    <div class="g21" style="align-items:start;">
       <div class="card">
-        <div class="card-hdr"><div class="ctit">Composición de gastos fijos</div></div>
-        <div class="prow"><div class="phdr"><span class="plbl">Nómina + SIPARE + 3%</span><span class="pval">$80,550 · 30.9%</span></div><div class="ptrack"><div class="pfill" style="width:31%;background:var(--blue);"></div></div></div>
-        <div class="prow"><div class="phdr"><span class="plbl">Torre Vela (depa)</span><span class="pval">$42,000 · 16.1%</span></div><div class="ptrack"><div class="pfill" style="width:16%;background:var(--red);"></div></div></div>
-        <div class="prow"><div class="phdr"><span class="plbl">Montacargas (3 meses más)</span><span class="pval">$33,200 · 12.7%</span></div><div class="ptrack"><div class="pfill" style="width:13%;background:var(--amber);"></div></div></div>
-        <div class="prow"><div class="phdr"><span class="plbl">Renta bodega</span><span class="pval">$28,600 · 11%</span></div><div class="ptrack"><div class="pfill" style="width:11%;background:var(--blue);"></div></div></div>
-        <div class="prow"><div class="phdr"><span class="plbl">SAT (estimado)</span><span class="pval">$20,000 · 7.7%</span></div><div class="ptrack"><div class="pfill" style="width:8%;background:var(--amber);"></div></div></div>
-        <div class="prow"><div class="phdr"><span class="plbl">Marketing agencia + pauta</span><span class="pval">$22,046 · 8.4%</span></div><div class="ptrack"><div class="pfill" style="width:8%;background:var(--green);"></div></div></div>
-        <div class="prow"><div class="phdr"><span class="plbl">Gasolina + limpieza</span><span class="pval">$11,500 · 4.4%</span></div><div class="ptrack"><div class="pfill" style="width:4%;background:var(--green);"></div></div></div>
-        <div class="prow"><div class="phdr"><span class="plbl">Servicios bodega + oficina</span><span class="pval">$8,700 · 3.3%</span></div><div class="ptrack"><div class="pfill" style="width:3%;background:var(--purple);"></div></div></div>
-        <div class="prow"><div class="phdr"><span class="plbl">Software + contador</span><span class="pval">$8,550 · 3.3%</span></div><div class="ptrack"><div class="pfill" style="width:3%;background:var(--purple);"></div></div></div>
+        <div class="card-hdr">
+          <div class="ctit">Transacciones del mes</div>
+          <div id="gastosLiveBadge" class="ts" style="color:var(--green);">cargando…</div>
+        </div>
+        <div class="tw" style="max-height:520px;overflow-y:auto;">
+          <table class="tbl">
+            <thead><tr>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Fecha</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Categoría</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Concepto</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Observaciones</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;text-align:right;">Importe</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Pago</th>
+              <th style="position:sticky;top:0;background:var(--card);z-index:2;">Factura</th>
+            </tr></thead>
+            <tbody id="gTbody"></tbody>
+          </table>
+        </div>
       </div>
       <div>
         <div class="card">
-          <div class="card-hdr"><div class="ctit">Distribución</div></div>
-          <div class="ch ch160"><canvas id="cGDonut"></canvas></div>
+          <div class="card-hdr"><div class="ctit">Por categoría</div></div>
+          <div id="gCatBars"></div>
         </div>
         <div class="card">
-          <div class="card-hdr"><div class="ctit">Liberación jul 2026</div></div>
-          <div style="font-size:28px;font-weight:700;color:var(--green);margin:6px 0;">+$33,200/mes</div>
-          <div style="font-size:11px;color:var(--muted2);">Al terminar montacargas. Permanente.</div>
+          <div class="card-hdr"><div class="ctit">Distribución</div></div>
+          <div class="ch ch160"><canvas id="cGPie"></canvas></div>
         </div>
       </div>
     </div>
     <div class="card">
       <div class="card-hdr"><div class="ctit">Gastos por mes — últimos 6 meses</div></div>
       <div class="ch ch200"><canvas id="cGMes"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="card-hdr"><div class="ctit">Nómina equipo ARSODECK</div></div>
-      <div class="tw"><table class="tbl">
-        <thead><tr><th>Persona</th><th>Rol</th><th>Sueldo</th><th>IMSS</th><th>Jornada</th><th>Nota</th></tr></thead>
-        <tbody>
-          <tr><td style="font-weight:600;">Quiby</td><td>Ventas / CRM</td><td class="cg" style="font-family:var(--mono);">$14,000</td><td><span class="bdg bdg-a">Parcial</span></td><td>Completo</td><td class="cx" style="font-size:10px;">$9,900 IMSS, resto por fuera</td></tr>
-          <tr><td style="font-weight:600;">Efrén</td><td>Bodega / Logística</td><td class="cg" style="font-family:var(--mono);">$13,000</td><td><span class="bdg bdg-a">Parcial</span></td><td>Completo</td><td class="cx" style="font-size:10px;">$9,900 IMSS, resto por fuera</td></tr>
-          <tr><td style="font-weight:600;">María Elena</td><td>Proyectos Arq.</td><td class="ca" style="font-family:var(--mono);">$15,000</td><td><span class="bdg bdg-r">No</span></td><td>Completo</td><td class="cx" style="font-size:10px;">Llamada de atención previa</td></tr>
-          <tr><td style="font-weight:600;">Antonio</td><td>Almacenista / Chofer</td><td class="cg" style="font-family:var(--mono);">$10,000</td><td><span class="bdg bdg-g">Sí</span></td><td>Completo</td><td class="cx" style="font-size:10px;">Completo desde empresa</td></tr>
-          <tr><td style="font-weight:600;">Mafer</td><td>Aux. Marketing</td><td class="cx" style="font-family:var(--mono);">$4,500</td><td><span class="bdg bdg-r">No</span></td><td>Medio día</td><td class="cx" style="font-size:10px;">Evaluación 30 días (mayo)</td></tr>
-          <tr><td style="font-weight:600;">Mario</td><td>Aux. Contabilidad</td><td class="cx" style="font-family:var(--mono);">$8,000</td><td><span class="bdg bdg-r">No</span></td><td>2 tardes/sem</td><td class="cx" style="font-size:10px;">Externo por fuera</td></tr>
-        </tbody>
-      </table></div>
-    </div>
-  </div>
+    </div>  </div>
 
   <!-- ═══ PEDIDOS ═══ -->
   <div id="sec-pedidos" class="sec">
@@ -934,51 +989,133 @@ function cleanN(v) {
 
 // ── RENDER GASTOS LIVE ────────────────────────────────────────
 function renderGastosLive(rows) {
-  const fi = (row, words) => row.findIndex(c => words.some(w => String(c).toUpperCase().includes(w)));
+  const fi=(row,words)=>row.findIndex(c=>words.some(w=>String(c).toUpperCase().includes(w)));
+
+  // Find header row — has CUENTA and GASTO
   let hdr=-1, cols={};
-  for (let i=0; i<rows.length; i++) {
+  for (let i=0;i<rows.length;i++) {
     const ci=fi(rows[i],['CUENTA']), gi=fi(rows[i],['GASTO']);
-    if (ci>=0 && gi>=0) {
+    if (ci>=0 && gi>=0 && String(rows[i][ci]).toUpperCase()==='CUENTA') {
       hdr=i; cols.cuenta=ci; cols.gasto=gi;
       cols.obs=fi(rows[i],['OBSERV']); cols.fecha=fi(rows[i],['FECHA']);
-      cols.imp=fi(rows[i],['IMPORTE']); cols.pago=fi(rows[i],['PAGO','FORMA']);
-      cols.fact=fi(rows[i],['FACTUR']); break;
+      cols.imp=fi(rows[i],['IMPORTE']); cols.pago=fi(rows[i],['FORMA PAGO','PAGO']);
+      cols.fact=fi(rows[i],['FACTURADO','FACTUR']); break;
     }
   }
-  let total=0, compras=0, nominas=0;
-  for (let i=0; i<Math.min(hdr+1,rows.length); i++) {
+
+  // Get summary totals from top of sheet (above header)
+  let totalSheet=0, comprasT=0, nominasT=0;
+  for (let i=0;i<Math.min(hdr,rows.length);i++) {
     const r=rows[i];
-    for (let j=0; j<r.length-1; j++) {
-      const v=cleanN(r[j+1]), k=String(r[j]).toUpperCase();
-      if (k==='TOTAL' && v>total) total=v;
-      if (k==='COMPRAS') compras=v;
-      if (k==='NOMINAS'||k==='NÓMINAS') nominas=v;
+    for (let j=0;j<r.length-1;j++) {
+      const v=cleanN(r[j+1]);
+      const k=String(r[j]||'').toUpperCase().trim();
+      if (k==='TOTAL' && v>totalSheet) totalSheet=v;
+      if (k==='COMPRAS') comprasT=v;
+      if (k==='NOMINAS'||k==='NÓMINAS') nominasT=v;
     }
   }
+
+  // Parse transactions
   const txns=[], catT={};
   if (hdr>=0) {
-    for (let i=hdr+1; i<rows.length; i++) {
+    for (let i=hdr+1;i<rows.length;i++) {
       const r=rows[i];
-      const imp=cleanN(r[cols.imp]), cuenta=String(r[cols.cuenta]||'').trim();
-      if (cuenta && cuenta!=='CUENTA' && imp>0) {
-        txns.push({cuenta,gasto:String(r[cols.gasto]||'').trim(),obs:String(r[cols.obs]||'').trim(),fecha:String(r[cols.fecha]||'').trim(),importe:imp,pago:String(r[cols.pago]||'').trim(),fact:String(r[cols.fact]||'').trim()});
-        catT[cuenta]=(catT[cuenta]||0)+imp;
-      }
+      const cuenta=String(r[cols.cuenta]||'').trim();
+      const imp=cleanN(r[cols.imp]);
+      if (!cuenta || cuenta==='' || cuenta==='CUENTA' || imp<=0) continue;
+      txns.push({
+        cuenta, gasto:String(r[cols.gasto]||'').trim(),
+        obs:String(r[cols.obs]||'').trim(),
+        fecha:String(r[cols.fecha]||'').trim(),
+        importe:imp,
+        pago:String(r[cols.pago]||'').trim(),
+        fact:String(r[cols.fact]||'').trim()
+      });
+      catT[cuenta]=(catT[cuenta]||0)+imp;
     }
   }
-  const realTotal=total||txns.reduce((s,t)=>s+t.importe,0);
-  const sinFact=txns.filter(t=>String(t.fact).toUpperCase()!=='SI').reduce((s,t)=>s+t.importe,0);
-  const mesLbl=rows[0]?String(rows[0][1]||'Mes actual'):'Mes actual';
+
+  const realTotal = totalSheet || txns.reduce((s,t)=>s+t.importe,0);
+  const sinFact = txns.filter(t=>String(t.fact).toUpperCase()!=='SI').reduce((s,t)=>s+t.importe,0);
+  const conFact = txns.filter(t=>String(t.fact).toUpperCase()==='SI').reduce((s,t)=>s+t.importe,0);
+  const compras = comprasT || catT['COMPRAS'] || 0;
+  const nominas = nominasT || catT['NOMINAS'] || catT['NÓMINAS'] || 0;
+
+  // ── Update KPI cards in gastos section ──
+  const gTotEl = document.getElementById('gTotalVal');
+  const gTotSub = document.getElementById('gTotalSub');
+  const gCompEl = document.getElementById('gComprasVal');
+  const gNomEl  = document.getElementById('gNominasVal');
+  const gSinEl  = document.getElementById('gSinFactVal');
+
+  if(gTotEl)  gTotEl.textContent  = fmtF(realTotal);
+  if(gTotSub) gTotSub.textContent = txns.length+' transacciones registradas';
+  if(gCompEl) gCompEl.textContent = fmtF(compras);
+  if(gNomEl)  gNomEl.textContent  = fmtF(nominas);
+  if(gSinEl)  gSinEl.textContent  = fmtF(sinFact);
 
   // Update finanzas gastos card
-  document.getElementById('fGastosTxt').textContent = fmt(realTotal);
-  document.getElementById('fGastosSub').textContent = mesLbl + ' — ' + txns.length + ' registros';
+  if(document.getElementById('fGastosTxt'))
+    document.getElementById('fGastosTxt').textContent = fmtF(realTotal);
+  if(document.getElementById('fGastosSub'))
+    document.getElementById('fGastosSub').textContent = 'Abril 2026 — '+txns.length+' movimientos';
 
-  // Update gastos section header badge
-  const gBadge = document.getElementById('gastosLiveBadge');
-  if (gBadge) gBadge.textContent = '● LIVE';
+  // ── Rebuild transactions table ──
+  const gTbody = document.getElementById('gTbody');
+  if(gTbody) {
+    gTbody.innerHTML = '';
+    [...txns].reverse().forEach(t=>{
+      const fb = String(t.fact).toUpperCase()==='SI'?'<span class="bdg bdg-g">Sí</span>':
+                 String(t.fact).toUpperCase()==='NO'?'<span class="bdg bdg-r">No</span>':
+                 '<span class="bdg bdg-x">—</span>';
+      const tr=document.createElement('tr');
+      tr.innerHTML=`
+        <td class="cx" style="font-family:var(--mono);font-size:10px;">${t.fecha}</td>
+        <td><span class="ctag">${t.cuenta}</span></td>
+        <td style="font-size:11px;">${t.gasto}</td>
+        <td class="cx" style="font-size:10px;">${t.obs}</td>
+        <td style="text-align:right;font-family:var(--mono);font-size:12px;">${fmtF(t.importe)}</td>
+        <td class="cx" style="font-size:10px;">${t.pago}</td>
+        <td>${fb}</td>`;
+      gTbody.appendChild(tr);
+    });
+  }
 
-  console.log('Gastos live: ' + txns.length + ' transacciones, total ' + realTotal);
+  // ── Rebuild category bars ──
+  const gCatBars = document.getElementById('gCatBars');
+  if(gCatBars) {
+    const top=Object.entries(catT).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    const mx=top[0]?top[0][1]:1;
+    const clrs=['var(--accent)','var(--red)','var(--amber)','var(--green)','var(--a2)','var(--teal)','#ff7a52','#378ADD','var(--muted2)','var(--muted)'];
+    gCatBars.innerHTML=top.map(([k,v],i)=>`
+      <div class="prow">
+        <div class="phdr"><span class="plbl">${k}</span><span class="pval">${fmtF(v)}</span></div>
+        <div class="ptrack"><div class="pfill" style="width:${(v/mx*100).toFixed(1)}%;background:${clrs[i]};"></div></div>
+      </div>`).join('');
+  }
+
+  // ── Rebuild pie chart ──
+  const top8=Object.entries(catT).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if(window._gP) window._gP.destroy();
+  window._gP=new Chart(document.getElementById('cGPie'),{
+    type:'doughnut',
+    data:{labels:top8.map(([k])=>k),datasets:[{
+      data:top8.map(([,v])=>v),
+      backgroundColor:['#4f7dff','#f04060','#f5a623','#27c77a','#7c4fff','#00bfa5','#ff7a52','#505068'],
+      borderWidth:0,cutout:'62%'
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{label:v=>v.label+': '+fmtF(v.raw)}}
+    }}
+  });
+
+  // Update gastos live badge
+  const gBadge=document.getElementById('gastosLiveBadge');
+  if(gBadge) gBadge.textContent='● Live · '+txns.length+' movimientos · '+fmtF(realTotal);
+
+  console.log('✅ Gastos live conectado: '+txns.length+' transacciones, total '+fmtF(realTotal));
 }
 
 // ── RENDER VENTAS LIVE ────────────────────────────────────────
@@ -1093,7 +1230,7 @@ function renderVentasLive(rows) {
         <td class="cx" style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.material||'—'}</td>
         <td><span class="ctag">${canalShort}</span></td>
         <td>${estBadge}</td>
-        <td style="text-align:right;font-family:var(--mono);">$${Math.round(t.importe).toLocaleString('es-MX')}</td>
+        <td style="text-align:right;font-family:var(--mono);">$${Number(t.importe).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
         <td>${factBadge}</td>`;
       tbody.appendChild(tr);
     });
@@ -1165,6 +1302,10 @@ async function initLiveData() {
   setTimeout(initLiveData, 300000);
 }
 
+const fmtF=(n,dec=2)=>{
+  if(!n||isNaN(n)) return '$0.00';
+  return '$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+};
 const fmt=n=>{const a=Math.abs(n),s=n<0?'-':'';return a>=1e6?s+'$'+(a/1e6).toFixed(2)+'M':a>=1e3?s+'$'+Math.round(a/1000)+'k':s+'$'+Math.round(a).toLocaleString('es-MX');};
 
 // ── CHARTS ────────────────────────────────────────────────────
@@ -1314,6 +1455,100 @@ new Chart(document.getElementById('cCajaBod'),{type:'doughnut',data:{
     backgroundColor:['#f5a020','#f03d5f','#22c97a','#4f7dff','#00bfa5','#7c4fff'],
     borderWidth:0,cutout:'60%'}]
 },options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>v.label+': $'+v.raw.toLocaleString()}}}}});
+
+// ── CASH POSITION ─────────────────────────────────────────────
+function loadCash() {
+  try {
+    const d = JSON.parse(localStorage.getItem('ars_cash') || '{}');
+    const bbva     = d.bbva     || 0;
+    const efectivo = d.efectivo || 0;
+    const pends    = d.pendientes || '';
+    const total    = bbva + efectivo;
+
+    // Parse pending payments
+    let totalPend = 0;
+    const pendLines = pends.split('\n').filter(l => l.trim());
+    pendLines.forEach(line => {
+      const parts = line.split('|');
+      if (parts.length >= 2) {
+        const amt = parseFloat(parts[1].replace(/[$,\s]/g,''));
+        if (!isNaN(amt)) totalPend += amt;
+      }
+    });
+    const dispDespues = total - totalPend;
+
+    // Update view
+    const mxFmt = n => '$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
+    document.getElementById('vBBVA').textContent     = bbva ? mxFmt(bbva) : '—';
+    document.getElementById('vEfectivo').textContent = efectivo ? mxFmt(efectivo) : '—';
+    document.getElementById('vTotal').textContent    = total ? mxFmt(total) : '—';
+    document.getElementById('vTotalPend').textContent    = totalPend ? mxFmt(totalPend) : '$0';
+    document.getElementById('vDispDespues').textContent  = mxFmt(dispDespues);
+    document.getElementById('vLastUpdate').textContent   = d.ts || 'Sin datos';
+
+    // Status indicator
+    const sc = document.getElementById('cashStatusCard');
+    const sv = document.getElementById('vStatus');
+    if (total > 0) {
+      if (dispDespues >= 0) {
+        sv.textContent = '✓ OK';
+        sv.style.color = 'var(--green)';
+        sc.style.borderColor = 'rgba(34,201,122,.3)';
+      } else {
+        sv.textContent = '⚠ Falta ' + mxFmt(Math.abs(dispDespues));
+        sv.style.color = 'var(--red)';
+        sc.style.borderColor = 'rgba(240,64,96,.3)';
+      }
+    }
+
+    // Pending list
+    const vp = document.getElementById('vPendientes');
+    if (pendLines.length > 0) {
+      vp.innerHTML = pendLines.map(line => {
+        const parts = line.split('|');
+        const desc = parts[0]||'';
+        const amt  = parts[1]||'';
+        const num  = parseFloat(amt.replace(/[$,\s]/g,''));
+        return `<div class="sr" style="padding:5px 0;"><span class="srl">${desc.trim()}</span><span class="srr ca">${isNaN(num)?amt.trim():'$'+Number(num).toLocaleString('es-MX',{minimumFractionDigits:2})}</span></div>`;
+      }).join('');
+    } else {
+      vp.innerHTML = '<span style="color:var(--muted2);">Sin pagos pendientes registrados</span>';
+    }
+
+    // Fill edit inputs
+    document.getElementById('iBBVA').value     = bbva || '';
+    document.getElementById('iEfectivo').value = efectivo || '';
+    document.getElementById('iPendientes').value = pends;
+  } catch(e) { console.warn('Cash load error:', e); }
+}
+
+function toggleCashEdit() {
+  const edit = document.getElementById('cashEdit');
+  const view = document.getElementById('cashView');
+  const btn  = document.getElementById('cashEditBtn');
+  const isEditing = edit.style.display !== 'none';
+  edit.style.display = isEditing ? 'none' : 'block';
+  view.style.display = isEditing ? 'block' : 'none';
+  btn.textContent = isEditing ? '✏ Editar' : '✕ Cerrar';
+}
+
+function cancelCashEdit() {
+  document.getElementById('cashEdit').style.display = 'none';
+  document.getElementById('cashView').style.display = 'block';
+  document.getElementById('cashEditBtn').textContent = '✏ Editar';
+}
+
+function saveCash() {
+  const bbva     = parseFloat(document.getElementById('iBBVA').value)     || 0;
+  const efectivo = parseFloat(document.getElementById('iEfectivo').value) || 0;
+  const pends    = document.getElementById('iPendientes').value;
+  const ts       = new Date().toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+  localStorage.setItem('ars_cash', JSON.stringify({bbva, efectivo, pendientes: pends, ts}));
+  cancelCashEdit();
+  loadCash();
+}
+
+loadCash();
 
 // ── INIT LIVE DATA ───────────────────────────────────────────
 initLiveData();
