@@ -1679,9 +1679,13 @@ function renderPedidosLive(rows) {
   // Update paquetería chart
   const paqT = {};
   txns.forEach(p=>{ if(p.paqueteria && p.paqueteria!=='—') paqT[p.paqueteria]=(paqT[p.paqueteria]||0)+1; });
-  if (window._paqChart) { window._paqChart.destroy(); window._paqChart=null; }
   const paqCanvas = document.getElementById('cPaqueteria');
   if (paqCanvas) {
+    // Destroy any existing chart on this canvas (from initPedidos or previous render)
+    const existing = Chart.getChart(paqCanvas);
+    if (existing) existing.destroy();
+    if (window._paqChart) { try{window._paqChart.destroy();}catch(e){} window._paqChart=null; }
+
     const paqOrder=['PAQUETEXPRESS','CASTORES','POTOSINOS','TRES GUERRAS'];
     const paqColors={'PAQUETEXPRESS':'#f5a020','CASTORES':'#22c97a','POTOSINOS':'#7c4fff','TRES GUERRAS':'#f04e23'};
     const lbl=Object.keys(paqT);
