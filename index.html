@@ -1037,8 +1037,9 @@ const PEDIDOS = [
 // ── LIVE DATA via fetch + CSV publicado ──────────────────────
 // Desde GitHub Pages (https) el fetch a Google Sheets funciona sin CORS
 const SHEET_URLS = {
-  gastos: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPS80Ym4xs2XizU_lICf00ee5KV3e4Yhl28HoB5fvc1Yusfj9Fp39QFJt7viQzj0_m1kUmZvrl-BC1/pub?output=csv',
-  ventas: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTdgJdhcLZAXq-fR0499nX0E0Z0hB5wsyHI8rhob9ghIVXw2D6K-JjAtzQYbyjoT3fS-ks6fZiNzf7F/pub?output=csv'
+  gastos:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTPS80Ym4xs2XizU_lICf00ee5KV3e4Yhl28HoB5fvc1Yusfj9Fp39QFJt7viQzj0_m1kUmZvrl-BC1/pub?output=csv',
+  ventas:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vTdgJdhcLZAXq-fR0499nX0E0Z0hB5wsyHI8rhob9ghIVXw2D6K-JjAtzQYbyjoT3fS-ks6fZiNzf7F/pub?output=csv',
+  pedidos: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQAKmpMl9OggL75WynP7Xayohliiri3_YOOuRspVdUKTjUpY3a20dacNrvlPbTo0kKmhA5qSATSLQ73/pub?gid=0&single=true&output=csv'
 };
 
 function parseCSV(text) {
@@ -1486,21 +1487,17 @@ function renderVentasLive(rows) {
 }
 // ── INIT LIVE ─────────────────────────────────────────────────
 async function initLiveData() {
-  // Detect current month from today's date to show in UI
   const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio',
     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const hoy=new Date();
-  const mesActual=MESES[hoy.getMonth()]+' '+String(hoy.getFullYear()).slice(2);
-  // Update section titles with current month
   const vMesEl=document.getElementById('vMesLbl');
   if(vMesEl) vMesEl.textContent=MESES[hoy.getMonth()]+' 2026';
 
-  // Load sequentially to avoid rate limits
   try {
     const ventasRows = await loadLiveData('ventas');
     if (ventasRows) {
       renderVentasLive(ventasRows);
-      console.log('✅ Ventas live conectado — mes activo: hoja 1 del sheet');
+      console.log('✅ Ventas live conectado');
     }
   } catch(e) { console.warn('Ventas offline:', e.message); }
 
@@ -1510,12 +1507,205 @@ async function initLiveData() {
     const gastosRows = await loadLiveData('gastos');
     if (gastosRows) {
       renderGastosLive(gastosRows);
-      console.log('✅ Gastos live conectado — mes activo: hoja 1 del sheet');
+      console.log('✅ Gastos live conectado');
     }
   } catch(e) { console.warn('Gastos offline:', e.message); }
 
-  // Refresh every 5 min
+  await new Promise(r => setTimeout(r, 2000));
+
+  try {
+    const pedidosRows = await loadLiveData('pedidos');
+    if (pedidosRows) {
+      renderPedidosLive(pedidosRows);
+      console.log('✅ Pedidos live conectado');
+    }
+  } catch(e) { console.warn('Pedidos offline:', e.message); }
+
   setTimeout(initLiveData, 300000);
+}
+
+// ── RENDER PEDIDOS LIVE ─────────────────────────────────────────
+function renderPedidosLive(rows) {
+  // Find header row — looks for "RASTREO" or "PROVEEDOR" column
+  const fi=(row,words)=>row.findIndex(c=>words.some(w=>String(c).toUpperCase().includes(w)));
+  let hdr=-1, cols={};
+  for (let i=0;i<rows.length;i++) {
+    const r=rows[i];
+    const pi=fi(r,['PROVEEDOR']);
+    const ri=fi(r,['RASTREO']);
+    if (pi>=0 && ri>=0 && String(r[pi]).toUpperCase().includes('PROVEEDOR')) {
+      hdr=i;
+      cols.mes    = fi(r,['MES']);
+      cols.fecha  = 1; // usually col B has date
+      cols.rastreo= ri;
+      cols.prov   = pi;
+      cols.origen = fi(r,['CIUDAD PROVEN','CIUDAD']);
+      cols.destino= fi(r,['DESTINO']);
+      cols.mat    = fi(r,['MATERIAL ENVI','MATERIAL']);
+      cols.cliente= fi(r,['CLIENTE']);
+      cols.tipo   = fi(r,['TIPO']);
+      cols.paq    = fi(r,['PAQUETERIA']);
+      cols.pedido = fi(r,['NUMERO DE PEDIDO','PEDIDO']);
+      cols.estat  = fi(r,['ESTATUS']);
+      break;
+    }
+  }
+  if (hdr<0) {
+    console.warn('Pedidos: header no encontrado');
+    return;
+  }
+
+  // Parse rows
+  const mesNormalizer = (s) => {
+    const u=String(s||'').toUpperCase().trim();
+    if (u.startsWith('ENE')) return 'ENERO';
+    if (u.startsWith('FEB')) return 'FEBRERO';
+    if (u.startsWith('MAR')) return 'MARZO';
+    if (u.startsWith('ABR')) return 'ABRIL';
+    if (u.startsWith('MAY')) return 'MAYO';
+    if (u.startsWith('JUN')) return 'JUNIO';
+    if (u.startsWith('JUL')) return 'JULIO';
+    if (u.startsWith('AGO')) return 'AGOSTO';
+    if (u.startsWith('SEP')) return 'SEPTIEMBRE';
+    if (u.startsWith('OCT')) return 'OCTUBRE';
+    if (u.startsWith('NOV')) return 'NOVIEMBRE';
+    if (u.startsWith('DIC')) return 'DICIEMBRE';
+    return u || '—';
+  };
+
+  const estatusNormalizer = (s) => {
+    const u=String(s||'').toUpperCase().trim();
+    if (!u || u==='') return 'En tránsito';
+    if (u.includes('DAÑAD') || u.includes('DANAD') || u.includes('INCIDEN')) return 'Problema / Incidencia';
+    if (u.includes('RECIBIDO') || u.includes('ENTREGADO')) return 'Entregado';
+    if (u.includes('TRANSITO') || u.includes('CAMINO') || u.includes('RUTA')) return 'En tránsito';
+    return 'Entregado';
+  };
+
+  let lastMes = '';
+  const txns = [];
+  for (let i=hdr+1; i<rows.length; i++) {
+    const r = rows[i];
+    const prov = String(r[cols.prov]||'').trim();
+    if (!prov) continue;
+    // Skip header-like rows
+    if (prov.toUpperCase()==='PROVEEDOR') continue;
+
+    const mesRaw = String(r[cols.mes]||'').trim();
+    if (mesRaw) lastMes = mesNormalizer(mesRaw);
+
+    const fechaRaw = r[cols.fecha];
+    let fecha = '—';
+    if (fechaRaw !== undefined && fechaRaw !== '') {
+      const fs = String(fechaRaw);
+      if (fs.includes('-') || fs.includes('/')) {
+        // Try to parse date
+        const parts = fs.split(/[-\/]/);
+        if (parts.length >= 3) {
+          const d = parts[2].substring(0,2);
+          const m = parts[1];
+          fecha = d.padStart(2,'0') + '/' + m.padStart(2,'0');
+        } else fecha = fs.substring(0,10);
+      } else {
+        // Just a day number like "21"
+        const dayNum = parseInt(fs);
+        if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 31) {
+          const mesMap={'ENERO':'01','FEBRERO':'02','MARZO':'03','ABRIL':'04',
+            'MAYO':'05','JUNIO':'06','JULIO':'07','AGOSTO':'08',
+            'SEPTIEMBRE':'09','OCTUBRE':'10','NOVIEMBRE':'11','DICIEMBRE':'12'};
+          fecha = String(dayNum).padStart(2,'0') + '/' + (mesMap[lastMes]||'??');
+        }
+      }
+    }
+
+    const rastreoRaw = String(r[cols.rastreo]||'').trim();
+    const rastreo = rastreoRaw.replace(/\.0$/,'').replace(/\s+/g,'');
+
+    const pedidoRaw = String(r[cols.pedido]||'').trim().replace(/\.0$/,'').replace(/\n/g,' / ');
+
+    txns.push({
+      mes:       lastMes,
+      fecha:     fecha,
+      rastreo:   rastreo,
+      proveedor: prov,
+      origen:    String(r[cols.origen]||'').trim() || '—',
+      destino:   String(r[cols.destino]||'').trim() || '—',
+      paqueteria:String(r[cols.paq]||'').trim() || '—',
+      pedido:    pedidoRaw || '—',
+      estatus:   estatusNormalizer(r[cols.estat]),
+      nota:      (estatusNormalizer(r[cols.estat])==='Problema / Incidencia'?String(r[cols.estat]||'').trim():'')
+    });
+  }
+
+  // Replace the global PEDIDOS array with live data
+  window.PEDIDOS = txns;
+  const MES_ORDER={'ABRIL':4,'MARZO':3,'FEBRERO':2,'ENERO':1,'MAYO':5,'JUNIO':6,'JULIO':7,'AGOSTO':8,'SEPTIEMBRE':9,'OCTUBRE':10,'NOVIEMBRE':11,'DICIEMBRE':12};
+  window.PEDIDOS_SORTED = [...txns].sort((a,b)=>(MES_ORDER[b.mes]||0)-(MES_ORDER[a.mes]||0));
+
+  // Update counters and KPIs
+  const et = txns.filter(p=>p.estatus==='En tránsito').length;
+  const en = txns.filter(p=>p.estatus==='Entregado').length;
+  const pr = txns.filter(p=>p.estatus==='Problema / Incidencia').length;
+  const setEl = (id,val) => { const e=document.getElementById(id); if(e) e.textContent=val; };
+  setEl('pEnTransito', et);
+  setEl('pEntregados', en);
+  setEl('pProblemas', pr);
+  setEl('pTotal', txns.length);
+  setEl('pTrendT', et+' activos');
+  setEl('pTrendE', en+' registrados');
+  setEl('pTrendP', pr>0 ? pr+' urgente' : 'Sin problemas');
+  const sbBadge = document.getElementById('sbBadgeProb');
+  if (sbBadge) {
+    sbBadge.textContent = pr;
+    sbBadge.style.display = pr===0 ? 'none' : '';
+  }
+
+  // Update alerts
+  const alerts = document.getElementById('pAlerts');
+  if (alerts) {
+    alerts.innerHTML = '';
+    txns.filter(p=>p.estatus==='Problema / Incidencia').forEach(p=>{
+      alerts.innerHTML += `<div class="alrt ar" style="margin-bottom:8px;">
+        <span>⚠</span><div><strong>${p.proveedor}</strong> — ${p.nota} · Pedido: ${p.pedido} · Guía: ${p.rastreo||'sin guía'} vía ${p.paqueteria}<br>
+        <span style="color:var(--muted2);">Origen: ${p.origen} → ${p.destino} · ${p.mes} ${p.fecha}</span></div></div>`;
+    });
+  }
+
+  // Re-render the table with live data
+  if (typeof renderPedidos === 'function') {
+    renderPedidos(window.PEDIDOS_SORTED);
+  }
+
+  // Update paquetería chart
+  const paqT = {};
+  txns.forEach(p=>{ if(p.paqueteria && p.paqueteria!=='—') paqT[p.paqueteria]=(paqT[p.paqueteria]||0)+1; });
+  if (window._paqChart) { window._paqChart.destroy(); window._paqChart=null; }
+  const paqCanvas = document.getElementById('cPaqueteria');
+  if (paqCanvas) {
+    const paqOrder=['PAQUETEXPRESS','CASTORES','POTOSINOS','TRES GUERRAS'];
+    const paqColors={'PAQUETEXPRESS':'#f5a020','CASTORES':'#22c97a','POTOSINOS':'#7c4fff','TRES GUERRAS':'#f04e23'};
+    const lbl=Object.keys(paqT);
+    const vals=lbl.map(k=>paqT[k]);
+    const clrs=lbl.map(k=>paqColors[k]||'#505068');
+    window._paqChart=new Chart(paqCanvas,{type:'doughnut',data:{labels:lbl,datasets:[{data:vals,backgroundColor:clrs,borderWidth:0,cutout:'62%'}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'right',labels:{font:{size:10},color:'#9898b8'}},tooltip:{callbacks:{label:v=>v.label+': '+v.raw+' envíos'}}}}});
+  }
+
+  // Update tasa KPI card
+  const tasa = txns.length > 0 ? Math.round(en/txns.length*100) : 0;
+  const tasaEl = document.getElementById('pKpiTasa');
+  if (tasaEl) {
+    tasaEl.innerHTML=`
+      <div style="font-size:32px;font-weight:700;color:${tasa>=80?'var(--green)':'var(--amber)'};">${tasa}%</div>
+      <div style="font-size:11px;color:var(--muted2);margin-top:4px;">${en} de ${txns.length} pedidos entregados</div>
+      <div class="ptrack" style="margin-top:10px;height:6px;"><div class="pfill" style="width:${tasa}%;background:${tasa>=80?'var(--green)':'var(--amber)'};"></div></div>`;
+  }
+
+  // Update card header
+  const cardHdr = document.querySelector('#sec-pedidos .card-hdr .ctit');
+  if (cardHdr && cardHdr.textContent.includes('Seguimiento de envíos')) {
+    cardHdr.innerHTML = `Seguimiento de envíos — 2026 · <span style="color:var(--green);">● Live</span> · ${txns.length} registros`;
+  }
 }
 
 const fmtF=(n,dec=2)=>{
